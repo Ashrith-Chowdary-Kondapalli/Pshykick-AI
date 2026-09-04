@@ -20,7 +20,7 @@ async function serverConnect() {
     if (!prompt.trim()) return; // Don't send empty prompts
 
     try {
-        const response = await fetch(API_BASE_URL, {
+        const response = await fetch(`${API_BASE_URL}/chat`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
