@@ -2,7 +2,7 @@ from fastapi import FastAPI
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from models import llama_3_3_70b_versatile
+from modules.models import llama_3_3_70b_versatile
 import json
 
 app = FastAPI()

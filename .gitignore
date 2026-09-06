@@ -1,1 +1,7 @@
 /.env
+test.py
+test2.py
+server/__pycache__
+server/modules/__pycache__
+test3.py
+.venv
