@@ -13,6 +13,7 @@ sphere.addEventListener('mouseleave', () => {
 
 cutCallBtn.addEventListener('click', backToMainPage);
 muteBtn.addEventListener('click', changeButton);
+sphere.addEventListener('click', startAssistant);
 
 function backToMainPage() {
     interfaceTrigger.checked = false;
@@ -44,4 +45,76 @@ function changeButton() {
             </svg>
         `;
     }
+}
+
+function startAssistant() {
+    let mediaRecorder;
+    let audioChunks = [];
+    let audioContext;
+    let silenceTimer = null;
+
+    // 🛠️ FIX 1: Lowered threshold. Perceived volume is always between 0.0 and 1.0
+    const SILENCE_THRESHOLD = 0.015; 
+    const SILENCE_DURATION = 1500;   // 1.5 seconds of silence
+
+    async function startRecording() {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+        mediaRecorder.onstop = saveFile;
+
+        audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(stream);
+        const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+
+        processor.onaudioprocess = (e) => {
+            const input = e.inputBuffer.getChannelData(0);
+            
+            let sum = 0;
+            for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
+            const rms = Math.sqrt(sum / input.length);
+
+            if (rms < SILENCE_THRESHOLD) {
+                if (!silenceTimer) {
+                    silenceTimer = setTimeout(() => stopRecording(stream, processor), SILENCE_DURATION);
+                }
+            } else {
+                if (silenceTimer) {
+                    clearTimeout(silenceTimer);
+                    silenceTimer = null;
+                }
+            }
+        };
+
+        mediaRecorder.start();
+    }
+
+    function stopRecording(stream, processor) {
+        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+            mediaRecorder.stop();
+            stream.getTracks().forEach(track => track.stop());
+            processor.disconnect();
+            audioContext.close();
+            if (silenceTimer) clearTimeout(silenceTimer);
+        }
+    }
+
+    function saveFile() {
+        const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `recording.${mediaRecorder.mimeType.split('/')[1].split(';')[0]}`;
+        a.click();
+    }
+
+    // 🛠️ FIX 2: Actually launch the recording engine when the sphere is clicked!
+    startRecording();
 }
