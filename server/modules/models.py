@@ -6,6 +6,7 @@ from google import genai
 from groq import Groq
 from elevenlabs.client import ElevenLabs
 from elevenlabs import save
+import io
 
 load_dotenv()
 
@@ -34,15 +35,26 @@ def llama_3_3_70b_versatile(prompt, system_prompt):
 
 # Speech-to-Text
 def whisper_turbov3(audio):
+    # 1. Check if the audio is already a virtual 'io' object or raw bytes
+    if isinstance(audio, (io.BytesIO, bytes)):
+        # If it's a BytesIO object, read its data. If it's already raw bytes, use it directly.
+        file_data = audio.read() if hasattr(audio, 'read') else audio
+        # Give it a generic default voice extension so the AI knows the format layout
+        filename = "input_voice.webm" 
+    else:
+        # 2. Otherwise, treat it as a traditional string file path
+        filename = audio
         with open(audio, "rb") as file:
-            transcription = client.audio.transcriptions.create(
-            file=(audio, file.read()),
-            model="whisper-large-v3-turbo",
-            temperature=0,
-            response_format="verbose_json",
-            )
-            return transcription.text
+            file_data = file.read()
 
+    # 3. Pass the tuple directly to the AI model
+    transcription = client.audio.transcriptions.create(
+        file=(filename, file_data), # Uses your exact tuple logic!
+        model="whisper-large-v3-turbo",
+        temperature=0,
+        response_format="verbose_json",
+    )
+    return transcription.text
 def gemini_flashlite(user_prompt, system_prompt):
 
     # Run the Flash-Lite request with system instructions

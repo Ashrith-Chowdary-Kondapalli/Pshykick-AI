@@ -23,7 +23,6 @@ function changeButton() {
     const isMuted = muteBtn.getAttribute('data-muted') === 'true';
 
     if (!isMuted) {
-        // --- SWITCH TO MUTED STATE ---
         muteBtn.setAttribute('data-muted', 'true');
         muteBtn.style.backgroundColor = '#5f6368'; // Turn dark grey
         
@@ -34,11 +33,9 @@ function changeButton() {
             </svg>
         `;
     } else {
-        // --- SWITCH BACK TO ACTIVE STATE ---
         muteBtn.setAttribute('data-muted', 'false');
-        muteBtn.style.backgroundColor = ''; // Resets to original light charcoal CSS color
+        muteBtn.style.backgroundColor = ''; 
         
-        // Swap icon back to the Standard Microphone
         muteBtn.innerHTML = `
             <svg viewBox="0 0 24 24">
                 <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1 9h2c0 .55-.45 1-1 1s-1-.45-1-1zm6-12c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-2.08c3.39-.49 6-3.39 6-6.92h-2z"/>
@@ -53,9 +50,8 @@ function startAssistant() {
     let audioContext;
     let silenceTimer = null;
 
-    // 🛠️ FIX 1: Lowered threshold. Perceived volume is always between 0.0 and 1.0
     const SILENCE_THRESHOLD = 0.015; 
-    const SILENCE_DURATION = 1500;   // 1.5 seconds of silence
+    const SILENCE_DURATION = 1500;
 
     async function startRecording() {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -64,7 +60,7 @@ function startAssistant() {
         audioChunks = [];
 
         mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-        mediaRecorder.onstop = saveFile;
+        mediaRecorder.onstop = sendFile;
 
         audioContext = new AudioContext();
         const source = audioContext.createMediaStreamSource(stream);
@@ -105,16 +101,55 @@ function startAssistant() {
         }
     }
 
-    function saveFile() {
-        const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `recording.${mediaRecorder.mimeType.split('/')[1].split(';')[0]}`;
-        a.click();
+    async function sendFile() {
+            const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+            const extension = mediaRecorder.mimeType.split('/')?.[1]?.split(';')?.[0] || 'webm';
+
+            const formData = new FormData();
+            formData.append('audioFile', blob, `recording.${extension}`);
+
+            try {
+                const API_BASE_URL = "https://pshykickai.onrender.com"; 
+                console.log("Sending voice command to backend...");
+                
+                const response = await fetch(`${API_BASE_URL}/audio`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                // 🛠️ UPDATED: Hand the raw network response stream over to our handler
+                receiveAudioResponse(response);
+                
+            } catch (error) {
+                console.error("Error audio:", error);
+            }
     }
 
-    // 🛠️ FIX 2: Actually launch the recording engine when the sphere is clicked!
+    // 🛠️ BRAND NEW SEPARATE FUNCTION: Unpacks the blob stream and executes playback
+    async function receiveAudioResponse(response) {
+        try {
+            // 1. Extract the raw audio binary data attachment (.blob()) from the connection
+            const audioBlob = await response.blob();
+            
+            // 2. Generate a local, virtual address pointing directly to the blob data in memory
+            const audioUrl = URL.createObjectURL(audioBlob);
+            
+            // 3. Instantiate the native browser audio engine with our temporary memory link
+            const assistantVoice = new Audio(audioUrl);
+            
+            console.log("Playing back response from ElevenLabs!");
+            
+            // 4. Trigger audio playback out loud
+            await assistantVoice.play();
+            
+        } catch (error) {
+            console.error("Failed to unpack or play back audio response:", error);
+        }
+    }
+
     startRecording();
 }
