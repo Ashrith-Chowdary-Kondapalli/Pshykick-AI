@@ -13,7 +13,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://netlify.app"],
+    allow_origins=["https://pshykickai.netlify.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -28,7 +28,7 @@ def llama_3_3_70b_versatile(prompt, system_prompt):
                 "content": prompt,
             },
         ],  
-        model="groq/compound",
+        model="openai/gpt-oss-120b",
     )
         response_agent2 = response.choices[0].message.content
         return (f"{response_agent2}")
