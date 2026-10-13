@@ -34,7 +34,10 @@ async def agent_call(body: PromptRequest):
 
 @app.post("/audio")
 async def receive_audio_stream(audioFile: UploadFile = File(...)):
-    if audioFile.content_type not in ALLOWED_MIME_TYPES:
+    content_type = (audioFile.content_type or "").lower()
+    base_mime_type = content_type.split(";")[0].strip()
+
+    if base_mime_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid audio format '{audioFile.content_type}'."
