@@ -56,7 +56,21 @@ function startAssistant() {
     async function startRecording() {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        mediaRecorder = new MediaRecorder(stream);
+        const preferredTypes = [
+            "audio/webm;codecs=opus",
+            "audio/webm",
+            "audio/mp4"
+        ];
+
+        const supportedType = preferredTypes.find(
+            type => MediaRecorder.isTypeSupported(type)
+        );
+
+        mediaRecorder = supportedType
+            ? new MediaRecorder(stream, { mimeType: supportedType })
+            : new MediaRecorder(stream);
+
+        console.log("Selected recorder type:", mediaRecorder.mimeType);
         audioChunks = [];
 
         mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
@@ -116,9 +130,13 @@ function startAssistant() {
                     method: 'POST',
                     body: formData
                 });
+                console.log("Recorder MIME type:", mediaRecorder.mimeType);
+                console.log("Uploaded Blob MIME type:", blob.type);
 
                 if (!response.ok) {
-                    throw new Error(`Server error: ${response.status}`);
+                    const details = await response.text();
+                    console.error("Audio API rejected upload:", response.status, details);
+                    throw new Error(`HTTP ${response.status}: ${details}`);
                 }
 
                 // 🛠️ UPDATED: Hand the raw network response stream over to our handler
